@@ -108,119 +108,79 @@ int send_private_message(const char *target_username, const char *message, const
 
 /* Register new user - add to users.txt */
 int register_user(const char *username, const char *password) {
-    /* Trim and validate inputs to prevent corruption */
     char clean_user[50];
     char clean_pass[50];
     
     strncpy(clean_user, username, sizeof(clean_user) - 1);
     clean_user[sizeof(clean_user) - 1] = '\0';
-    clean_user[strcspn(clean_user, "\n\r:")] = '\0';  // Remove newlines and colons only
-    
-    strncpy(clean_pass, password, sizeof(clean_pass) - 1);
-    clean_pass[sizeof(clean_pass) - 1] = '\0';
-    clean_pass[strcspn(clean_pass, "\n\r:")] = '\0';  // Remove newlines and colons only
-    
-    /* Validate cleaned inputs */
-    if (strlen(clean_user) == 0 || strlen(clean_pass) == 0) {
-        printf("[Server]: Invalid username or password format (empty after cleaning)\n");
-        return 0;
-    }
-    
-    /* Check for invalid characters */
-    for (int i = 0; clean_user[i]; i++) {
-        if (clean_user[i] == ':') {
-            printf("[Server]: Username cannot contain ':' character\n");
-            return 0;
-        }
-    }
-    for (int i = 0; clean_pass[i]; i++) {
-        if (clean_pass[i] == ':') {
-            printf("[Server]: Password cannot contain ':' character\n");
-            return 0;
-        }
-    }
-    
-    FILE *file = fopen(USERS_FILE, "a");
-    if (!file) {
-        perror("Failed to open users file for writing");
-        return 0;
-    }
-    
-    fprintf(file, "%s:%s\n", clean_user, clean_pass);
-    fflush(file);
-    fclose(file);
-    
-    char log_msg[BUFFER_SIZE];
-    snprintf(log_msg, sizeof(log_msg), "[Server]: New user registered: %s\n", clean_user);
-    log_message(log_msg);")] = '\0';
+    clean_user[strcspn(clean_user, "\n\r:")] = '\0';
     
     strncpy(clean_pass, password, sizeof(clean_pass) - 1);
     clean_pass[sizeof(clean_pass) - 1] = '\0';
     clean_pass[strcspn(clean_pass, "\n\r:")] = '\0';
     
-    printf("[Server]: Authenticating user='%s' with password='%s'\n", clean_user, clean_pass);
+    if (strlen(clean_user) == 0 || strlen(clean_pass) == 0) {
+        printf("[Server]: Invalid username or password format\n");
+        return 0;
+    }
+    
+    FILE *file = fopen(USERS_FILE, "a");
+    if (!file) {
+        perror("Failed to open users file");
+        return 0;
+    }
+    
+    fprintf(file, "%s:%s\n", clean_user, clean_pass);
+    fclose(file);
+    
+    char log_msg[BUFFER_SIZE];
+    snprintf(log_msg, sizeof(log_msg), "[Server]: New user registered: %s\n", clean_user);
+    log_message(log_msg);
+    printf("%s", log_msg);
+    
+    return 1;
+}
+
+/* Validate user credentials - file-based authentication */
+int authenticate_user(const char *username, const char *password) {
+    char clean_user[50];
+    char clean_pass[50];
+    
+    strncpy(clean_user, username, sizeof(clean_user) - 1);
+    clean_user[sizeof(clean_user) - 1] = '\0';
+    clean_user[strcspn(clean_user, "\n\r:")] = '\0';
+    
+    strncpy(clean_pass, password, sizeof(clean_pass) - 1);
+    clean_pass[sizeof(clean_pass) - 1] = '\0';
+    clean_pass[strcspn(clean_pass, "\n\r:")] = '\0';
     
     FILE *file = fopen(USERS_FILE, "r");
-    
-    /* If users.txt doesn't exist, register first user */
     if (!file) {
-        printf("[Server]: users.txt not found, registering new user: %s\n", clean_user);
         return register_user(clean_user, clean_pass);
     }
     
     char line[256];
     char stored_user[50];
     char stored_pass[50];
-    int user_exists = 0;
     
-    /* Search for username in file */
     while (fgets(line, sizeof(line), file)) {
-        /* Remove trailing newline */
         line[strcspn(line, "\n\r")] = '\0';
         
-        /* Parse line: username:password */
         if (sscanf(line, "%49[^:]:%49s", stored_user, stored_pass) == 2) {
-            printf("[Server]: Checking against stored user='%s' pass='%s'\n", stored_user, stored_pass);
-            
             if (strcmp(stored_user, clean_user) == 0) {
-                user_exists = 1;
-                /* Username found - verify password */
+                fclose(file);
                 if (strcmp(stored_pass, clean_pass) == 0) {
-                    fclose(file);
-                    printf("[Server]: Authentication successful for user: %s\n", clean_user);
-                    return 1;  // Authentication successful
+                    return 1;
                 } else {
-                    fclose(file);
                     printf("[Server]: Wrong password for user: %s\n", clean_user);
-                    return 0;  // Wrong password - do NOT register
-        /* Remove trailing newline */
-        line[strcspn(line, "\n\r")] = '\0';
-        
-        /* Parse line: username:password */
-        if (sscanf(line, "%49[^:]:%49s", stored_user, stored_pass) == 2) {
-            if (strcmp(stored_user, clean_user) == 0) {
-                user_exists = 1;
-                /* Username found - verify password */
-                if (strcmp(stored_pass, clean_pass) == 0) {
-                    fclose(file);
-                    return 1;  // Authentication successful
-                } else {
-                    fclose(file);
-                    return 0;  // Wrong password
+                    return 0;
                 }
             }
         }
     }
     
     fclose(file);
-    
-    /* Username not found - register new user */
-    if (!user_exists) {
-        printf("[Server]: New user detected: %s, registering...\n", clean_user);
-        return register_user(clean_user, clean_pass);
-    }
-    
-    return 0;
+    return register_user(clean_user, clean_pass);
 }
 
 /* Signal handler for graceful shutdown */
