@@ -582,7 +582,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 👨‍💻 Author
 
-**Santhosh Kumar**  
+**Santhosh Kumar and Avishkar More**  
 - GitHub: [@egvsanthoshkumarcy24-glitch](https://github.com/egvsanthoshkumarcy24-glitch)
 - GitHub: [@Avi007-debug](https://github.com/Avi007-debug)
 - Project: Academic demonstration of OS and CN concepts with websockets
