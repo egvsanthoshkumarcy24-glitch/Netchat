@@ -29,10 +29,16 @@ int main() {
     pthread_t recv_thread;
     char message[BUFFER_SIZE];
     char final_msg[BUFFER_SIZE];
+    char password[50];
 
-    printf("Enter your name: ");
+    printf("=== NetChat Client ===\n");
+    printf("Enter your username: ");
     fgets(username, 50, stdin);
     username[strcspn(username, "\n")] = 0;   // remove newline
+
+    printf("Enter password: ");
+    fgets(password, 50, stdin);
+    password[strcspn(password, "\n")] = 0;   // remove newline
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
@@ -49,15 +55,20 @@ int main() {
         exit(1);
     }
 
-    printf("Connected to server\n");
+    printf("Connected to server...\n");
+    
+    /* Send username and password for authentication */
+    send(sockfd, username, strlen(username), 0);
+    send(sockfd, password, strlen(password), 0);
 
     pthread_create(&recv_thread, NULL, receive_messages, NULL);
 
     while (1) {
         fgets(message, BUFFER_SIZE, stdin);
-        snprintf(final_msg, BUFFER_SIZE, "%s: %s", username, message);
-        send(sockfd, final_msg, strlen(final_msg), 0);
-    }
+        
+        /* Check if it's a command */
+        if (message[0] == '/') {
+            send(sockfd, message, strlen(message), 0);\n        } else {\n            snprintf(final_msg, BUFFER_SIZE, "%s: %s", username, message);\n            send(sockfd, final_msg, strlen(final_msg), 0);\n        }\n    }
 
     close(sockfd);
     return 0;
