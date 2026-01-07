@@ -34,7 +34,7 @@ volatile sig_atomic_t server_running = 1;
 void get_timestamp(char *buffer, size_t size) {
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
-    strftime(buffer, size, "[%H:%M]", t);
+    strftime(buffer, size, "[%H:%M:%S]", t);
 }
 
 /* Log message to file with mutex protection */
@@ -108,18 +108,36 @@ int send_private_message(const char *target_username, const char *message, const
 
 /* Register new user - add to users.txt */
 int register_user(const char *username, const char *password) {
+    /* Trim and validate inputs to prevent corruption */
+    char clean_user[50];
+    char clean_pass[50];
+    
+    strncpy(clean_user, username, sizeof(clean_user) - 1);
+    clean_user[sizeof(clean_user) - 1] = '\0';
+    clean_user[strcspn(clean_user, "\n\r: ")] = '\0';  // Remove newlines, colons, spaces
+    
+    strncpy(clean_pass, password, sizeof(clean_pass) - 1);
+    clean_pass[sizeof(clean_pass) - 1] = '\0';
+    clean_pass[strcspn(clean_pass, "\n\r: ")] = '\0';  // Remove newlines, colons, spaces
+    
+    /* Validate cleaned inputs */
+    if (strlen(clean_user) == 0 || strlen(clean_pass) == 0) {
+        printf("[Server]: Invalid username or password format\n");
+        return 0;
+    }
+    
     FILE *file = fopen(USERS_FILE, "a");
     if (!file) {
         perror("Failed to open users file for writing");
         return 0;
     }
     
-    fprintf(file, "%s:%s\n", username, password);
+    fprintf(file, "%s:%s\n", clean_user, clean_pass);
     fflush(file);
     fclose(file);
     
     char log_msg[BUFFER_SIZE];
-    snprintf(log_msg, sizeof(log_msg), "[Server]: New user registered: %s\n", username);
+    snprintf(log_msg, sizeof(log_msg), "[Server]: New user registered: %s\n", clean_user);
     log_message(log_msg);
     printf("%s", log_msg);
     
@@ -128,12 +146,24 @@ int register_user(const char *username, const char *password) {
 
 /* Validate user credentials - file-based authentication */
 int authenticate_user(const char *username, const char *password) {
+    /* Clean inputs */
+    char clean_user[50];
+    char clean_pass[50];
+    
+    strncpy(clean_user, username, sizeof(clean_user) - 1);
+    clean_user[sizeof(clean_user) - 1] = '\0';
+    clean_user[strcspn(clean_user, "\n\r: ")] = '\0';
+    
+    strncpy(clean_pass, password, sizeof(clean_pass) - 1);
+    clean_pass[sizeof(clean_pass) - 1] = '\0';
+    clean_pass[strcspn(clean_pass, "\n\r: ")] = '\0';
+    
     FILE *file = fopen(USERS_FILE, "r");
     
     /* If users.txt doesn't exist, register first user */
     if (!file) {
-        printf("[Server]: users.txt not found, registering new user: %s\n", username);
-        return register_user(username, password);
+        printf("[Server]: users.txt not found, registering new user: %s\n", clean_user);
+        return register_user(clean_user, clean_pass);
     }
     
     char line[256];
@@ -143,12 +173,15 @@ int authenticate_user(const char *username, const char *password) {
     
     /* Search for username in file */
     while (fgets(line, sizeof(line), file)) {
+        /* Remove trailing newline */
+        line[strcspn(line, "\n\r")] = '\0';
+        
         /* Parse line: username:password */
         if (sscanf(line, "%49[^:]:%49s", stored_user, stored_pass) == 2) {
-            if (strcmp(stored_user, username) == 0) {
+            if (strcmp(stored_user, clean_user) == 0) {
                 user_exists = 1;
                 /* Username found - verify password */
-                if (strcmp(stored_pass, password) == 0) {
+                if (strcmp(stored_pass, clean_pass) == 0) {
                     fclose(file);
                     return 1;  // Authentication successful
                 } else {
@@ -163,8 +196,8 @@ int authenticate_user(const char *username, const char *password) {
     
     /* Username not found - register new user */
     if (!user_exists) {
-        printf("[Server]: New user detected: %s, registering...\n", username);
-        return register_user(username, password);
+        printf("[Server]: New user detected: %s, registering...\n", clean_user);
+        return register_user(clean_user, clean_pass);
     }
     
     return 0;
@@ -273,6 +306,7 @@ void *handle_client(void *arg) {
     char *help_msg = "\nCommands:\n"
                      "  /pm <user> <message> - Send private message\n"
                      "  /join <room> - Join a chat room\n"
+                     "  /room - Show current room\n"
                      "  /rooms - List available rooms\n"
                      "  /users - List users in current room\n\n";
     send(client_fd, help_msg, strlen(help_msg), 0);
@@ -296,20 +330,32 @@ void *handle_client(void *arg) {
                 *space = '\0';
                 char *target_user = cmd;
                 char *pm_msg = space + 1;
+                pm_msg[strcspn(pm_msg, "\n")] = 0;  // Remove newline
                 
                 if (send_private_message(target_user, pm_msg, username)) {
                     char confirm[BUFFER_SIZE];
-                    snprintf(confirm, sizeof(confirm), "[PM to %s]: %s", target_user, pm_msg);
+                    snprintf(confirm, sizeof(confirm), "[PM to %s]: %s\n", target_user, pm_msg);
                     send(client_fd, confirm, strlen(confirm), 0);
                     
                     char log_msg[BUFFER_SIZE];
-                    snprintf(log_msg, sizeof(log_msg), "[PM] %s -> %s: %s", username, target_user, pm_msg);
+                    snprintf(log_msg, sizeof(log_msg), "[PM] %s -> %s: %s\n", username, target_user, pm_msg);
                     log_message(log_msg);
                 } else {
                     char *not_found = "[Server]: User not found\n";
                     send(client_fd, not_found, strlen(not_found), 0);
                 }
+            } else {
+                char *usage = "[Server]: Usage: /pm <username> <message>\n";
+                send(client_fd, usage, strlen(usage), 0);
             }
+        }
+        else if (strncmp(buffer, "/room", 5) == 0 && (buffer[5] == '\n' || buffer[5] == '\0')) {
+            /* Show current room */
+            pthread_mutex_lock(&lock);
+            char room_msg[BUFFER_SIZE];
+            snprintf(room_msg, sizeof(room_msg), "[Server]: You are in #%s\n", clients[client_index].room);
+            pthread_mutex_unlock(&lock);
+            send(client_fd, room_msg, strlen(room_msg), 0);
         }
         else if (strncmp(buffer, "/join ", 6) == 0) {
             /* Join room: /join roomname */
