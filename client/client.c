@@ -13,6 +13,7 @@ char username[50];
 
 /* Thread to receive messages */
 void *receive_messages(void *arg) {
+    (void)arg;  // Argument not used
     char buffer[BUFFER_SIZE];
     int bytes;
 
@@ -68,7 +69,12 @@ int main() {
         
         /* Check if it's a command */
         if (message[0] == '/') {
-            send(sockfd, message, strlen(message), 0);\n        } else {\n            snprintf(final_msg, BUFFER_SIZE, "%s: %s", username, message);\n            send(sockfd, final_msg, strlen(final_msg), 0);\n        }\n    }
+            send(sockfd, message, strlen(message), 0);
+        } else {
+            snprintf(final_msg, BUFFER_SIZE, "%s: %s", username, message);
+            send(sockfd, final_msg, strlen(final_msg), 0);
+        }
+    }
 
     close(sockfd);
     return 0;

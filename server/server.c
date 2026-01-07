@@ -109,6 +109,7 @@ int send_private_message(const char *target_username, const char *message, const
 int authenticate_user(const char *username, const char *password) {
     /* Simple authentication - in real app, use database */
     /* For demo: accept any username with password "chat123" */
+    (void)username;  // Username not checked in this simple implementation
     if (strcmp(password, "chat123") == 0) {
         return 1;
     }
@@ -117,6 +118,7 @@ int authenticate_user(const char *username, const char *password) {
 
 /* Signal handler for graceful shutdown */
 void handle_shutdown(int sig) {
+    (void)sig;  // Signal number not used in handler
     server_running = 0;
     
     char *msg = "\n[Server]: Server is shutting down. Goodbye!\n";
