@@ -173,7 +173,7 @@ int authenticate_user(const char *username, const char *password) {
                     return 1;
                 } else {
                     printf("[Server]: Wrong password for user: %s\n", clean_user);
-                    return 0;
+                    return -1;  /* -1 indicates wrong password */
                 }
             }
         }
@@ -267,8 +267,14 @@ void *handle_client(void *arg) {
     }
 
     /* Step 3: Authenticate */
-    if (!authenticate_user(username, password)) {
-        char *auth_fail = "Authentication failed. Disconnecting...\n";
+    int auth_result = authenticate_user(username, password);
+    if (auth_result != 1) {
+        char *auth_fail;
+        if (auth_result == -1) {
+            auth_fail = "ERROR: Wrong password. Disconnecting...\n";
+        } else {
+            auth_fail = "ERROR: Authentication failed. Disconnecting...\n";
+        }
         send(client_fd, auth_fail, strlen(auth_fail), 0);
         close(client_fd);
         
