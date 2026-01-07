@@ -302,7 +302,32 @@ void *handle_client(void *arg) {
         "║     • /room                 - Show current room               ║\n"
         "║     • /join <roomname>      - Join/create a room              ║\n"
         "║     • /rooms                - List all active rooms           ║\n"
-        "║  join notification to room */
+        "║                                                                ║\n"
+        "║  👥 USERS:                                                     ║\n"
+        "║     • /users                - List users in current room      ║\n"
+        "║                                                                ║\n"
+        "║  ℹ️  HELP:                                                      ║\n"
+        "║     • /help                 - Show this menu again            ║\n"
+        "║                                                                ║\n"
+        "╚════════════════════════════════════════════════════════════════╝\n"
+        "\n");
+    send(client_fd, welcome_banner, strlen(welcome_banner), 0);
+
+    /* Store user info in client structure */
+    pthread_mutex_lock(&lock);
+    for (int i = 0; i < client_count; i++) {
+        if (clients[i].fd == client_fd) {
+            strncpy(clients[i].username, username, sizeof(clients[i].username) - 1);
+            strncpy(clients[i].password, password, sizeof(clients[i].password) - 1);
+            clients[i].authenticated = 1;
+            strcpy(clients[i].room, "general");  // Default room
+            client_index = i;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&lock);
+
+    /* Send join notification to room */
     snprintf(message, sizeof(message), "[Server]: %s has joined #general\n", username);
     printf("%s", message);
     log_message(message);
@@ -340,32 +365,7 @@ void *handle_client(void *arg) {
                 "\n");
             send(client_fd, help_menu, strlen(help_menu), 0);
             continue;
-        }ed = 1;
-            strcpy(clients[i].room, "general");  // Default room
-            client_index = i;
-            break;
         }
-    }
-    pthread_mutex_unlock(&lock);
-
-    /* Send available commands */
-    char *help_msg = "\nCommands:\n"
-                     "  /pm <user> <message> - Send private message\n"
-                     "  /join <room> - Join a chat room\n"
-                     "  /room - Show current room\n"
-                     "  /rooms - List available rooms\n"
-                     "  /users - List users in current room\n\n";
-    send(client_fd, help_msg, strlen(help_msg), 0);
-
-    /* Send join notification to room */
-    snprintf(message, sizeof(message), "[Server]: %s has joined #general\n", username);
-    printf("%s", message);
-    log_message(message);
-    broadcast_room(message, -1, "general");  // Send to all in general room
-
-    /* Handle messages and commands */
-    while ((bytes_read = recv(client_fd, buffer, BUFFER_SIZE, 0)) > 0) {
-        buffer[bytes_read] = '\0';
         
         /* Parse commands */
         if (strncmp(buffer, "/pm ", 4) == 0) {
