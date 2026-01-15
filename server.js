@@ -282,9 +282,10 @@ app.get('/chat.html', (req, res) => {
 });
 
 // ===== WEBSOCKET CONFIGURATION =====
-// Store connected users
+// Store connected users and active sessions
 const connectedUsers = new Map();
 const chatRooms = new Map();
+const activeSessions = new Map(); // Track active sessions by userId
 
 // Middleware to verify JWT token for WebSocket connections
 io.use((socket, next) => {
@@ -307,6 +308,23 @@ io.use((socket, next) => {
 // Handle WebSocket connections
 io.on('connection', (socket) => {
   console.log(`\n👤 User connected: ${socket.username} (${socket.id})`);
+  
+  // Check for duplicate session
+  if (activeSessions.has(socket.userId)) {
+    const existingSocketId = activeSessions.get(socket.userId);
+    const existingSocket = io.sockets.sockets.get(existingSocketId);
+    
+    if (existingSocket) {
+      console.log(`⚠️ Duplicate login detected for ${socket.username}. Disconnecting old session.`);
+      existingSocket.emit('session:duplicate', { 
+        message: 'Your account has been logged in from another location.' 
+      });
+      existingSocket.disconnect(true);
+    }
+  }
+  
+  // Store active session
+  activeSessions.set(socket.userId, socket.id);
   
   // Add user to connected users map
   connectedUsers.set(socket.userId, {
@@ -468,20 +486,34 @@ io.on('connection', (socket) => {
     const user = connectedUsers.get(socket.userId);
     if (user && user.room) {
       socket.to(user.room).emit('user:typing', {
-        username: socket.username,
-        room: user.room
-      });
+        usePrivate Message =====
+  socket.on('pm:send', (data) => {
+    const { to, message } = data;
+    
+    // Find target user
+    let targetUserId = null;
+    let targetSocketId = null;
+    
+    for (const [userId, userData] of connectedUsers.entries()) {
+      if (userData.username === to) {
+        targetUserId = userId;
+        targetSocketId = userData.socketId;
+        break;
+      }
     }
-  });
-
-  // ===== User Stopped Typing =====
-  socket.on('user:stopTyping', () => {
-    const user = connectedUsers.get(socket.userId);
-    if (user && user.room) {
-      socket.to(user.room).emit('user:stopTyping', {
-        username: socket.username,
-        room: user.room
+    
+    if (targetSocketId) {
+      // Send PM to target user
+      io.to(targetSocketId).emit('pm:received', {
+        from: socket.username,
+        message: message,
+        timestamp: new Date().toISOString()
       });
+      
+      console.log(`💌 PM: ${socket.username} -> ${to}: ${message}`);
+    } else {
+      // User not found
+      socket.emit('error', { message: `User '${to}' not found or offline` });
     }
   });
 
@@ -495,6 +527,24 @@ io.on('connection', (socket) => {
         const room = chatRooms.get(user.room);
         room.users = room.users.filter(u => u !== socket.username);
 
+        io.to(user.room).emit('message:new', {
+          type: 'system',
+          username: 'System',
+          message: `${socket.username} disconnected`,
+          timestamp: new Date().toISOString(),
+          room: user.room
+        });
+
+        io.to(user.room).emit('room:info', {
+          name: user.room,
+          users: room.users,
+          messageCount: room.messages.length
+        });
+      }
+
+      // Remove user from connected users and active sessions
+      connectedUsers.delete(socket.userId);
+      activeSession
         io.to(user.room).emit('message:new', {
           type: 'system',
           username: 'System',

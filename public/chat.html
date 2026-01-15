@@ -45,6 +45,23 @@
                 </div>
             </aside>
 
+            <!-- Private Chat Modal -->
+            <div class="pm-modal" id="pmModal" style="display: none;">
+                <div class="pm-modal-content">
+                    <div class="pm-header">
+                        <h3>💬 Private Chat with <span id="pmUsername"></span></h3>
+                        <button class="pm-close" id="pmCloseBtn">×</button>
+                    </div>
+                    <div class="pm-messages" id="pmMessages">
+                        <div class="pm-info">Private messages are only visible to you and <span id="pmUsernameInfo"></span></div>
+                    </div>
+                    <div class="pm-input-area">
+                        <input type="text" id="pmInput" placeholder="Type private message..." class="pm-input">
+                        <button id="pmSendBtn" class="pm-send-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Chat Area -->
             <div class="chat-area">
                 <!-- Room Info -->

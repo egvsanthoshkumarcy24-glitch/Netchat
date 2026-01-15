@@ -18,6 +18,13 @@ const logoutBtn = document.getElementById('logoutBtn');
 const roomInfo = document.getElementById('roomInfo');
 const typingIndicator = document.getElementById('typingIndicator');
 const typingText = document.getElementById('typingText');
+const pmModal = document.getElementById('pmModal');
+const pmUsername = document.getElementById('pmUsername');
+const pmUsernameInfo = document.getElementById('pmUsernameInfo');
+const pmMessagesContainer = document.getElementById('pmMessages');
+const pmInput = document.getElementById('pmInput');
+const pmSendBtn = document.getElementById('pmSendBtn');
+const pmCloseBtn = document.getElementById('pmCloseBtn');
 
 // State
 let currentUser = null;
@@ -25,6 +32,8 @@ let currentRoom = null;
 let connectedUsers = [];
 let typingUsers = [];
 let typingTimeout = null;
+let currentPMUser = null;
+let pmMessagesMap = new Map(); // Store PM history
 
 // Initialize
 window.addEventListener('load', () => {
@@ -60,6 +69,33 @@ socket.on('connect_error', (error) => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/';
+    }
+});
+
+// Duplicate Session Detected
+socket.on('session:duplicate', (data) => {
+    alert('⚠️ Your account is already logged in from another location. You will be disconnected.');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/';
+});
+
+// Private Message Received
+socket.on('pm:received', (data) => {
+    const { from, message, timestamp } = data;
+    
+    // Show notification
+    showNotification(`New PM from ${from}`);
+    
+    // Store PM
+    if (!pmMessagesMap.has(from)) {
+        pmMessagesMap.set(from, []);
+    }
+    pmMessagesMap.get(from).push({ from, message, timestamp, type: 'received' });
+    
+    // If PM window is open with this user, add to display
+    if (currentPMUser === from) {
+        addPMToUI(from, message, timestamp, 'received');
     }
 });
 
@@ -257,9 +293,22 @@ function updateUsersList() {
         userEl.className = 'user-item';
         const statusDot = user.id === currentUser.id ? '🟢' : '🔵';
         userEl.innerHTML = `
-            ${statusDot} ${user.username}
-            ${user.room ? `<div style="font-size: 11px; opacity: 0.7; margin-top: 3px;">📌 ${user.room}</div>` : ''}
+            <div class="user-info">
+                ${statusDot} ${user.username}
+                ${user.room ? `<div style="font-size: 11px; opacity: 0.7; margin-top: 3px;">📌 ${user.room}</div>` : ''}
+            </div>
+            ${user.username !== currentUser.username ? '<button class="pm-btn" title="Send private message">💬</button>' : ''}
         `;
+        
+        // Add click handler for PM button
+        if (user.username !== currentUser.username) {
+            const pmBtn = userEl.querySelector('.pm-btn');
+            pmBtn.onclick = (e) => {
+                e.stopPropagation();
+                openPMChat(user.username);
+            };
+        }
+        
         usersList.appendChild(userEl);
     });
 }
@@ -375,6 +424,106 @@ logoutBtn.onclick = () => {
         window.location.href = '/';
     }
 };
+
+// ===== Private Messaging Functions =====
+
+function openPMChat(username) {
+    currentPMUser = username;
+    pmUsername.textContent = username;
+    pmUsernameInfo.textContent = username;
+    pmModal.style.display = 'flex';
+    
+    // Load PM history
+    loadPMHistory(username);
+    pmInput.focus();
+}
+
+function closePMChat() {
+    pmModal.style.display = 'none';
+    currentPMUser = null;
+}
+
+function loadPMHistory(username) {
+    const container = pmMessagesContainer;
+    container.innerHTML = `<div class="pm-info">Private messages are only visible to you and ${username}</div>`;
+    
+    if (pmMessagesMap.has(username)) {
+        pmMessagesMap.get(username).forEach(pm => {
+            addPMToUI(username, pm.message, pm.timestamp, pm.type);
+        });
+    }
+}
+
+function addPMToUI(username, message, timestamp, type) {
+    const container = pmMessagesContainer;
+    const msgEl = document.createElement('div');
+    msgEl.className = `pm-message pm-${type}`;
+    
+    const time = new Date(timestamp).toLocaleTimeString();
+    const label = type === 'sent' ? 'You' : username;
+    
+    msgEl.innerHTML = `
+        <div class="pm-msg-label">${label}</div>
+        <div class="pm-msg-text">${escapeHTML(message)}</div>
+        <div class="pm-msg-time">${time}</div>
+    `;
+    
+    container.appendChild(msgEl);
+    container.scrollTop = container.scrollHeight;
+}
+
+function sendPrivateMessage() {
+    const message = pmInput.value.trim();
+    if (!message || !currentPMUser) return;
+    
+    const timestamp = new Date().toISOString();
+    
+    // Send to server
+    socket.emit('pm:send', {
+        to: currentPMUser,
+        message: message
+    });
+    
+    // Store locally
+    if (!pmMessagesMap.has(currentPMUser)) {
+        pmMessagesMap.set(currentPMUser, []);
+    }
+    pmMessagesMap.get(currentPMUser).push({ message, timestamp, type: 'sent' });
+    
+    // Add to UI
+    addPMToUI(currentPMUser, message, timestamp, 'sent');
+    
+    pmInput.value = '';
+}
+
+function showNotification(message) {
+    // Simple notification - you can enhance this
+    if (Notification.permission === 'granted') {
+        new Notification('NetChat', { body: message });
+    }
+}
+
+// PM Modal Event Listeners
+pmCloseBtn.onclick = closePMChat;
+pmSendBtn.onclick = sendPrivateMessage;
+pmInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        sendPrivateMessage();
+    }
+});
+
+// Close modal when clicking outside
+pmModal.addEventListener('click', (e) => {
+    if (e.target === pmModal) {
+        closePMChat();
+    }
+});
+
+// Request notification permission
+if (Notification.permission === 'default') {
+    Notification.requestPermission();
+}
 
 // Periodically refresh rooms list
 setInterval(() => {
