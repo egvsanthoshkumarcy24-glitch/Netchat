@@ -1,223 +1,146 @@
-# 🚀 NetChat Web - Quick Start Guide
+# NetChat Quick Start
 
-## Installation & Running
+## 🚀 Two Ways to Run
 
-### Step 1: Install Dependencies
+### Option 1: C Socket Server (Terminal-based)
 ```bash
-cd /home/avishkar/Coding/Netchat
-npm install
+# Build
+make all
+
+# Terminal 1 - Start server
+make run-server
+
+# Terminal 2, 3, etc - Connect clients
+make run-client
 ```
 
-### Step 2: Start the Server
+**Default credentials**: Any username/password (auto-registers)
+
+**Commands**:
+- `/help` - Show commands
+- `/join <room>` - Switch rooms
+- `/pm <user> <msg>` - Private message
+- `/users` - See who's online
+
+---
+
+### Option 2: Web Server (Browser-based)
 ```bash
-npm start
-```
-
-You should see:
-```
-🚀 NetChat Server is running on http://localhost:3000
-📝 Register: POST /api/auth/register
-🔑 Login: POST /api/auth/login
-👤 Profile: GET /api/auth/profile (requires token)
-🚪 Logout: POST /api/auth/logout (requires token)
-```
-
-### Step 3: Open Browser
-Open your browser and navigate to:
-```
-http://localhost:3000
-```
-
----
-
-## 🎯 What's Included
-
-### ✅ Backend (Node.js + Express)
-- **Register Route** - Create new user accounts with validation
-- **Login Route** - Authenticate users with JWT tokens
-- **Profile Route** - Get authenticated user details
-- **Logout Route** - Update user status to offline
-- Password hashing with bcryptjs
-- JWT token generation and validation
-- Input validation with express-validator
-
-### ✅ Frontend (HTML + CSS + JavaScript)
-- **Login Form** - Email, password, remember me option
-- **Register Form** - Username, email, password confirmation
-- **Modern UI** - Beautiful gradient design, responsive layout
-- **Form Validation** - Real-time error messages
-- **Password Strength** - Visual indicator while typing
-- **Loading States** - Spinner during submission
-- **Success Modal** - Confirmation after registration/login
-
-### ✅ Storage
-- User data stored in `users.json`
-- JWT tokens for session management
-- localStorage for frontend token storage
-
----
-
-## 🧪 Test Credentials (Create Your Own!)
-
-After starting the server, you can:
-
-1. **Create a new account** via the Register form on the website
-2. **Login** with the credentials you created
-3. **Check data** in `users.json` file
-
----
-
-## 📊 Example API Calls
-
-### Using curl (Terminal)
-
-**Register:**
-```bash
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "alice",
-    "email": "alice@example.com",
-    "password": "Alice123!",
-    "confirmPassword": "Alice123!"
-  }'
-```
-
-**Login:**
-```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "alice@example.com",
-    "password": "Alice123!"
-  }'
-```
-
----
-
-## 🎨 Features Showcase
-
-### Registration Page
-- ✅ Real-time password strength indicator
-- ✅ Confirm password matching
-- ✅ Email validation
-- ✅ Username length validation (3-30 chars)
-- ✅ Terms & Privacy agreement checkbox
-- ✅ Switch to login link
-
-### Login Page  
-- ✅ Email & password authentication
-- ✅ Password visibility toggle
-- ✅ Remember me checkbox
-- ✅ Forgot password link (ready for feature)
-- ✅ Switch to register link
-
-### Visual Feedback
-- ✅ Loading spinners during submission
-- ✅ Error messages with red background
-- ✅ Success modal after registration
-- ✅ Password strength color coding (red/yellow/green)
-- ✅ Responsive mobile design
-
----
-
-## 📁 File Structure
-
-```
-Netchat/
-├── server.js                 # Express backend with routes
-├── package.json              # Dependencies & scripts
-├── .env                      # Environment config
-├── AUTH_SETUP.md            # Detailed API documentation
-├── users.json               # User data (auto-created)
-└── public/
-    ├── index.html           # Login/Register UI
-    ├── styles.css           # Beautiful styling
-    └── script.js            # Form handling & validation
-```
-
----
-
-## 💡 Key Technologies
-
-- **Backend:** Node.js, Express.js
-- **Security:** bcryptjs, JWT, CORS
-- **Validation:** express-validator
-- **Frontend:** HTML5, CSS3, Vanilla JavaScript
-- **Storage:** JSON file (local development)
-
----
-
-## 🔒 Security Notes
-
-✅ Passwords are hashed using bcryptjs  
-✅ JWT tokens used for session management  
-✅ CORS enabled for security  
-✅ Input validation on both client & server  
-✅ Email uniqueness enforced  
-✅ Tokens expire in 24 hours  
-
-For production:
-- Use environment variables for secrets
-- Migrate to MongoDB/PostgreSQL
-- Implement refresh tokens
-- Add rate limiting
-- Use HTTPS only
-- Add email verification
-
----
-
-## 🛠️ Development Commands
-
-```bash
-# Install dependencies
+# Install dependencies (first time only)
 npm install
 
 # Start server
 npm start
 
-# Stop server
-Ctrl+C
+# Open browser
+http://localhost:3000
+```
 
-# For hot-reload (requires nodemon)
-npm install --save-dev nodemon
-npm run dev
+**Create account** on web interface, then login.
+
+---
+
+## 📋 OS Concepts Featured
+
+### C Server Implementation
+✅ **Multi-threading** - pthread for each client  
+✅ **Mutex locks** - Thread-safe client list & log file  
+✅ **TCP Sockets** - socket(), bind(), listen(), accept()  
+✅ **Signal handling** - SIGINT (Ctrl+C) graceful shutdown  
+✅ **File I/O** - Persistent auth (users.txt) & logging (chat.log)  
+✅ **Resource management** - Max 10 clients, admission control  
+✅ **Broadcast logic** - Room-based & private messaging  
+
+### Architecture
+```
+Main Thread ──┬──> Client Thread 1 (Alice)
+              ├──> Client Thread 2 (Bob)
+              ├──> Client Thread 3 (Carol)
+              └──> ...
+                   │
+                   ├──> Mutex Lock
+                   ├──> Client List (shared)
+                   └──> Log File (shared)
 ```
 
 ---
 
-## 📝 Notes
+## 🔧 Make Commands
 
-- Server runs on port 3000 (configurable in .env)
-- User data saved to users.json in project root
-- All passwords hashed before storage
-- JWT tokens expire in 24 hours
-- Frontend is fully responsive (mobile-friendly)
-
----
-
-## 🎓 Learning Outcomes
-
-This implementation demonstrates:
-- ✅ RESTful API design
-- ✅ User authentication flow
-- ✅ Password hashing and security
-- ✅ JWT token management
-- ✅ Form validation
-- ✅ Error handling
-- ✅ Responsive UI design
-- ✅ Client-server communication
+```bash
+make help        # Show all commands
+make all         # Build C server & client
+make run-server  # Start C server
+make run-client  # Start C client
+make web         # Start web server
+make clean       # Remove binaries & logs
+make reset       # Clean + rebuild
+```
 
 ---
 
-## 🚀 Next Steps
+## 📝 First Time Setup (Linux)
 
-1. Enhance with more features (password reset, email verification)
-2. Add WebSocket for real-time chat
-3. Integrate with the C-based chat server
-4. Add user profiles and avatars
-5. Implement friends/followers system
+```bash
+# 1. Make scripts executable
+chmod +x setup.sh start.sh
+
+# 2. Check dependencies
+./setup.sh
+
+# 3. Install Node.js deps (for web mode)
+npm install
+
+# 4. Run!
+./start.sh
+```
 
 ---
 
-**Happy Chatting! 🎉**
+## 🐛 Troubleshooting
+
+**Port already in use?**
+```bash
+# C server (port 8080)
+lsof -ti:8080 | xargs kill -9
+
+# Web server (port 3000)
+lsof -ti:3000 | xargs kill -9
+```
+
+**Compilation errors?**
+```bash
+# Install build tools
+sudo apt-get install build-essential
+
+# Rebuild
+make clean
+make all
+```
+
+**Web server won't start?**
+```bash
+# Reinstall dependencies
+rm -rf node_modules package-lock.json
+npm install
+```
+
+---
+
+## 📊 File Overview
+
+| File | Purpose |
+|------|---------|
+| `server/server.c` | Multi-threaded C socket server |
+| `client/client.c` | C client with receive thread |
+| `server.js` | Node.js web server (Express + Socket.IO) |
+| `public/` | Web UI (HTML/CSS/JS) |
+| `Makefile` | Build automation |
+| `start.sh` | Interactive launcher |
+| `setup.sh` | Dependency checker |
+
+---
+
+**Project ready for Linux! 🐧**
+
+Run `./start.sh` to get started.
